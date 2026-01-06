@@ -9,15 +9,36 @@ export default function PomodoroTimer() {
   const [completedPomodoros, setCompletedPomodoros] = useState(0);
   const [currentTask, setCurrentTask] = useState('');
   const [taskInput, setTaskInput] = useState('');
-  const [autoStart, setAutoStart] = useState(true);
-  const [autoStartAfterBreak, setAutoStartAfterBreak] = useState(true);
+  const [autoStart, setAutoStart] = useState(false);
+  const [autoStartAfterBreak, setAutoStartAfterBreak] = useState(false);
   const [longBreakInterval, setLongBreakInterval] = useState(4);
   const [showSettings, setShowSettings] = useState(false);
-  const [continueTaskUntilLongBreak, setContinueTaskUntilLongBreak] = useState(true);
+  const [continueTaskUntilLongBreak, setContinueTaskUntilLongBreak] = useState(false);
   const intervalRef = useRef(null);
   const wakeLockRef = useRef(null);
   const startTimeRef = useRef(null);
   const targetTimeRef = useRef(null);
+
+const [isPro, setIsPro] = useState(() => {
+  return localStorage.getItem("isPro") === "true";
+});
+const [showProModal, setShowProModal] = useState(false);
+
+const requirePro = (action) => {
+  if (isPro) return action();
+  setShowProModal(true);
+};
+
+const unlockPro = () => {
+  localStorage.setItem("isPro", "true");
+  setIsPro(true);
+  setShowProModal(false);
+};
+
+const resetPro = () => {
+  localStorage.removeItem("isPro");
+  setIsPro(false);
+};
 
   useEffect(() => {
     if (isActive) {
@@ -143,21 +164,35 @@ export default function PomodoroTimer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="px-4 py-5 sm:px-6 sm:py-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ポモドーロ</h1>
-              <p className="text-xs sm:text-sm text-gray-600 mt-0.5">集中して作業</p>
-            </div>
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2.5 sm:p-3 rounded-xl hover:bg-gray-100 transition-colors active:scale-95"
-            >
-              <Settings size={22} className="text-gray-600" />
-            </button>
-          </div>
-        </div>
+       {/* Header */}
+<div className="px-4 py-5 sm:px-6 sm:py-6 border-b border-gray-100">
+  <div className="flex items-center justify-between">
+    {/* 左：タイトル */}
+    <div>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-800">ポモドーロタイマー</h1>
+      <p className="text-xs sm:text-sm text-gray-600 mt-0.5">集中して作業</p>
+    </div>
+
+    {/* 右：Free/Proバッジ + 設定ボタン */}
+    <div className="flex items-center gap-2">
+      <span
+        className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+          isPro ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+        }`}
+      >
+        {isPro ? "Pro" : "Free"}
+      </span>
+
+      <button
+        onClick={() => setShowSettings(!showSettings)}
+        className="p-2.5 sm:p-3 rounded-xl hover:bg-gray-100 transition-colors active:scale-95"
+      >
+        <Settings size={22} className="text-gray-600" />
+      </button>
+    </div>
+  </div>
+</div>
+
 
         <div className="px-4 py-5 sm:px-6 sm:py-6">
           {/* Settings Panel */}
@@ -169,21 +204,33 @@ export default function PomodoroTimer() {
                   <X size={18} className="text-gray-600" />
                 </button>
               </div>
-              
+              {!isPro && (
+  <p className="text-xs text-gray-600 mb-3">
+    🔒 の項目はPro（買い切り）で解放できます
+  </p>
+)}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  長時間休憩の頻度
-                </label>
+  長時間休憩の頻度
+  {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+</label>
                 <div className="flex items-center gap-3">
                   <input
-                    type="range"
-                    min="2"
-                    max="8"
-                    value={longBreakInterval}
-                    onChange={(e) => setLongBreakInterval(Number(e.target.value))}
-                    className="flex-1"
-                    disabled={isActive}
-                  />
+  type="range"
+  min="2"
+  max="8"
+  value={longBreakInterval}
+  onPointerDown={(e) => {
+    if (!isPro) {
+      e.preventDefault();
+      setShowProModal(true);
+    }
+  }}
+  onChange={(e) => requirePro(() => setLongBreakInterval(Number(e.target.value)))}
+  className={`flex-1 ${!isPro ? "opacity-60" : ""}`}
+  disabled={isActive}
+/>
+
                   <div className="text-right min-w-[70px]">
                     <span className="text-xl sm:text-2xl font-bold text-red-600">{longBreakInterval}</span>
                     <span className="text-xs text-gray-600 ml-1">回</span>
@@ -197,11 +244,13 @@ export default function PomodoroTimer() {
               <div className="pt-3 border-t border-gray-200 space-y-3">
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
-                    <div className="text-sm font-medium text-gray-800">作業後に自動開始</div>
+                    <div className="text-sm font-medium text-gray-800">
+  作業後に自動開始 {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+</div>
                     <div className="text-xs text-gray-600 mt-0.5">作業完了後すぐ休憩</div>
                   </div>
                   <div
-                    onClick={() => setAutoStart(!autoStart)}
+                    onClick={() => requirePro(() => setAutoStart(!autoStart))}
                     className={`w-12 h-7 rounded-full transition-colors ${
                       autoStart ? 'bg-red-500' : 'bg-gray-300'
                     }`}
@@ -216,11 +265,13 @@ export default function PomodoroTimer() {
 
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
-                    <div className="text-sm font-medium text-gray-800">休憩後に自動開始</div>
+                    <div className="text-sm font-medium text-gray-800">
+  休憩後に自動開始 {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+</div>
                     <div className="text-xs text-gray-600 mt-0.5">短時間休憩後すぐ作業</div>
                   </div>
                   <div
-                    onClick={() => setAutoStartAfterBreak(!autoStartAfterBreak)}
+                    onClick={() => requirePro(() => setAutoStartAfterBreak(!autoStartAfterBreak))}
                     className={`w-12 h-7 rounded-full transition-colors ${
                       autoStartAfterBreak ? 'bg-green-500' : 'bg-gray-300'
                     }`}
@@ -235,11 +286,14 @@ export default function PomodoroTimer() {
 
                 <label className="flex items-center justify-between cursor-pointer">
                   <div>
-                    <div className="text-sm font-medium text-gray-800">タスク継続</div>
+                    <div className="text-sm font-medium text-gray-800">
+  タスク継続 {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+</div>
+
                     <div className="text-xs text-gray-600 mt-0.5">長時間休憩まで継続</div>
                   </div>
                   <div
-                    onClick={() => setContinueTaskUntilLongBreak(!continueTaskUntilLongBreak)}
+                    onClick={() => requirePro(() => setContinueTaskUntilLongBreak(!continueTaskUntilLongBreak))}
                     className={`w-12 h-7 rounded-full transition-colors ${
                       continueTaskUntilLongBreak ? 'bg-red-500' : 'bg-gray-300'
                     }`}
@@ -252,6 +306,14 @@ export default function PomodoroTimer() {
                   </div>
                 </label>
               </div>
+{import.meta.env.DEV && (
+  <button
+    onClick={resetPro}
+    className="mt-2 text-xs text-gray-500 underline"
+  >
+    Proを解除（開発用）
+  </button>
+)}
             </div>
           )}
 
@@ -406,6 +468,57 @@ export default function PomodoroTimer() {
           </div>
         </div>
       </div>
+
+    {showProModal && (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-gray-800">Proで解放 🔓</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                自動開始や長時間休憩など、集中の“自動化”が使えます。
+              </p>
+            </div>
+            <button
+              onClick={() => setShowProModal(false)}
+              className="p-2 rounded-lg hover:bg-gray-100"
+            >
+              <X size={18} className="text-gray-600" />
+            </button>
+          </div>
+
+         <div className="mt-4 space-y-2 text-sm text-gray-700">
+  <div>✅ 長時間休憩で燃え尽きを防ぐ</div>
+  <div>✅ 自動開始で「再開の摩擦」をゼロに</div>
+  <div>✅ タスク継続で集中を途切れさせない</div>
+</div>
+
+
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setShowProModal(false)}
+              className="py-3 rounded-xl bg-gray-200 hover:bg-gray-300 font-semibold"
+            >
+              後で
+            </button>
+            <button
+              onClick={unlockPro}
+              className="py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold"
+            >
+              Proを購入（買い切り）
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500 mt-3">
+            <div className="mt-3 bg-gray-50 rounded-xl p-3">
+  <div className="text-sm font-semibold text-gray-800">買い切り：¥480（予定）</div>
+  <div className="text-xs text-gray-600 mt-1">※ いまはテスト用の購入ボタンです</div>
+</div>
+
+          </p>
+        </div>
+      </div>
+    )}
     </div>
   );
 }
