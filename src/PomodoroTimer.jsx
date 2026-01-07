@@ -511,7 +511,7 @@ const resetPro = () => {
 
           <p className="text-xs text-gray-500 mt-3">
             <div className="mt-3 bg-gray-50 rounded-xl p-3">
-  <div className="text-sm font-semibold text-gray-800">買い切り：¥480（予定）</div>
+  <div className="text-sm font-semibold text-gray-800">買い切り：¥600（予定）</div>
   <div className="text-xs text-gray-600 mt-1">※ いまはテスト用の購入ボタンです</div>
 </div>
 
