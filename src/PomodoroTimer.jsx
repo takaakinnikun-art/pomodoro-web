@@ -1,6 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Briefcase, Settings, X } from 'lucide-react';
 
+// uid をブラウザに保存（ユーザー識別用）
+const getOrCreateUid = () => {
+  let uid = localStorage.getItem("uid");
+  if (!uid) {
+    uid = crypto.randomUUID();
+    localStorage.setItem("uid", uid);
+  }
+  return uid;
+};
+
 export default function PomodoroTimer() {
   const [minutes, setMinutes] = useState(25);
   const [seconds, setSeconds] = useState(0);
@@ -19,32 +29,44 @@ export default function PomodoroTimer() {
   const startTimeRef = useRef(null);
   const targetTimeRef = useRef(null);
 
-const [isPro, setIsPro] = useState(() => {
-  return localStorage.getItem("isPro") === "true";
-});
 const [showProModal, setShowProModal] = useState(false);
+const [isPro, setIsPro] = useState(false);
+
+useEffect(() => {
+  const uid = getOrCreateUid();
+
+  fetch(`/api/me?uid=${encodeURIComponent(uid)}`)
+    .then((res) => res.json())
+    .then((data) => setIsPro(!!data.isPro))
+    .catch(() => setIsPro(false));
+}, []);
 
 const requirePro = (action) => {
   if (isPro) return action();
   setShowProModal(true);
 };
 
-const unlockPro = () => {
-  localStorage.setItem("isPro", "true");
-  setIsPro(true);
-  setShowProModal(false);
-};
-
-const resetPro = () => {
-  localStorage.removeItem("isPro");
-  setIsPro(false);
-};
 
 const handleCheckout = async () => {
+  const uid = getOrCreateUid(); // ★ 追加（最重要）
+
   const res = await fetch("/api/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uid }), // ★ uid を送る
   });
+
+  const data = await res.json();
+
+  if (!data.url) {
+    console.error(data);
+    alert("Checkout URL が取得できませんでした");
+    return;
+  }
+
+  window.location.href = data.url;
+};
+
 
   const data = await res.json();
 
@@ -102,6 +124,7 @@ const handleCheckout = async () => {
         clearInterval(intervalRef.current);
       }
     }
+
 
     return () => {
       if (intervalRef.current) {
@@ -324,14 +347,6 @@ const handleCheckout = async () => {
                   </div>
                 </label>
               </div>
-{import.meta.env.DEV && (
-  <button
-    onClick={resetPro}
-    className="mt-2 text-xs text-gray-500 underline"
-  >
-    Proを解除（開発用）
-  </button>
-)}
             </div>
           )}
 
