@@ -1,0 +1,1 @@
+{"name":"Pomodoro","short_name":"Pomodoro","description":"ポモドーロタイマー","start_url":"/","display":"standalone","background_color":"#ffffff","theme_color":"#ef4444","lang":"en","scope":"/","icons":[{"src":"/icons/icon-192.png","sizes":"192x192","type":"image/png"},{"src":"/icons/icon-512.png","sizes":"512x512","type":"image/png"}]}

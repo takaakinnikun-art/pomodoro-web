@@ -48,12 +48,12 @@ const requirePro = (action) => {
 
 
 const handleCheckout = async () => {
-  const uid = getOrCreateUid(); // ★ 追加（最重要）
+  const uid = getOrCreateUid();
 
   const res = await fetch("/api/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uid }), // ★ uid を送る
+    body: JSON.stringify({ uid }),
   });
 
   const data = await res.json();
@@ -66,19 +66,6 @@ const handleCheckout = async () => {
 
   window.location.href = data.url;
 };
-
-
-  const data = await res.json();
-
-  if (!data.url) {
-    console.error(data);
-    alert("Checkout URL が取得できませんでした");
-    return;
-  }
-
-  window.location.href = data.url;
-};
-
 
   useEffect(() => {
     if (isActive) {
