@@ -40,6 +40,24 @@ const resetPro = () => {
   setIsPro(false);
 };
 
+const handleCheckout = async () => {
+  const res = await fetch("/api/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+
+  const data = await res.json();
+
+  if (!data.url) {
+    console.error(data);
+    alert("Checkout URL が取得できませんでした");
+    return;
+  }
+
+  window.location.href = data.url;
+};
+
+
   useEffect(() => {
     if (isActive) {
       intervalRef.current = setInterval(() => {
@@ -501,12 +519,12 @@ const resetPro = () => {
             >
               後で
             </button>
-            <button
-              onClick={unlockPro}
-              className="py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold"
-            >
-              Proを購入（買い切り）
-            </button>
+           <button
+  onClick={handleCheckout}
+  className="py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold"
+>
+  Proを購入（買い切り）
+</button>
           </div>
 
           <p className="text-xs text-gray-500 mt-3">

@@ -1,0 +1,46 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import Stripe from "stripe";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// health check
+app.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
+// checkout session
+app.post("/api/checkout", async (_req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      success_url: `${process.env.APP_URL}/success`,
+      cancel_url: `${process.env.APP_URL}/cancel`,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error("Stripe checkout error:", err);
+    res.status(500).json({ error: err?.message ?? "Unknown error" });
+  }
+});
+
+// webhook (temporary receiver)
+app.post("/webhook", (req, res) => {
+  console.log("✅ webhook received");
+  console.log(req.body);
+  res.json({ received: true });
+});
+
+const PORT = process.env.PORT || 4242;
+app.listen(PORT, () => {
+  console.log(`Stripe server running at http://localhost:${PORT}`);
+});
