@@ -48,32 +48,26 @@ export default async function handler(req, res) {
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  /**
-   * === ここからイベント処理 ===
-   */
+    // === ここからイベント処理 ===
+  console.log("[webhook] event.type =", event.type);
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
 
+    console.log("[webhook] session.id =", session.id);
+    console.log("[webhook] session.payment_status =", session.payment_status);
+    console.log("[webhook] session.metadata =", session.metadata);
+
     const uid = session?.metadata?.uid;
     if (!uid) {
-      console.warn("checkout.session.completed but no uid in metadata");
+      console.warn("[webhook] NO uid in metadata");
       return res.status(200).json({ received: true, warning: "no_uid" });
     }
 
-    // PRO フラグを KV に保存
     await kv.set(`pro:${uid}`, true);
-
-    // （任意）デバッグ・確認用の詳細保存
-    await kv.hset(`pro_detail:${uid}`, {
-      session_id: session.id,
-      payment_status: session.payment_status ?? "",
-      amount_total: String(session.amount_total ?? ""),
-      currency: session.currency ?? "",
-      created: String(session.created ?? ""),
-    });
-
-    console.log("PRO enabled for uid:", uid);
+    console.log("[webhook] PRO enabled for uid:", uid);
+  } else {
+    console.log("[webhook] ignored event:", event.type);
   }
 
   return res.status(200).json({ received: true });
-}
