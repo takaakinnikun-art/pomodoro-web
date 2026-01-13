@@ -23,6 +23,14 @@ export default async function handler(req, res) {
     }
 
     const sig = req.headers["stripe-signature"];
+
+    // ---- 診断ログ（安全：秘密は出さない）----
+    console.log("[webhook] has stripe-signature =", Boolean(sig));
+    console.log(
+      "[webhook] webhook secret length =",
+      (process.env.STRIPE_WEBHOOK_SECRET || "").length
+    );
+
     if (!sig) {
       return res
         .status(400)
@@ -32,6 +40,12 @@ export default async function handler(req, res) {
     let event;
     try {
       const rawBody = await getRawBody(req);
+
+      // ---- 診断ログ（安全）----
+      console.log("[webhook] rawBody length =", rawBody.length);
+      const sigHead = String(sig).slice(0, 40);
+      console.log("[webhook] stripe-signature head =", sigHead);
+
       event = stripe.webhooks.constructEvent(
         rawBody,
         sig,
@@ -44,7 +58,9 @@ export default async function handler(req, res) {
       );
       return res
         .status(400)
-        .send(`Webhook Error: ${err?.message || "Signature verification failed"}`);
+        .send(
+          `Webhook Error: ${err?.message || "Signature verification failed"}`
+        );
     }
 
     // ---- ここからイベント処理 ----
@@ -71,7 +87,6 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ received: true });
   } catch (err) {
-    // ここに来るのは予期せぬ例外
     console.error("[webhook] unexpected error:", err?.message || err);
     return res.status(500).json({
       received: false,
