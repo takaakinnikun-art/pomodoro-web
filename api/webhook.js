@@ -59,8 +59,25 @@ export default async function handler(req, res) {
       const session = event.data.object;
 
       // uid は metadata.uid または client_reference_id を想定
-      const uid =
-        session?.client_reference_id || session?.metadata?.uid;
+      const uid = session?.client_reference_id;
+
+// 移行期間の保険（client_reference_id が無い古い決済に備える）
+const uidFallback = session?.metadata?.uid;
+
+const finalUid = uid || uidFallback;
+
+console.log("[webhook] uid resolution", {
+  eventId: event.id,
+  client_reference_id: uid,
+  metadata_uid: uidFallback,
+  finalUid,
+});
+
+if (!finalUid) {
+  return res.status(200).json({ received: true, no_uid: true });
+}
+
+await kv.set(`pro:${finalUid}`, true);
 
 console.log("[webhook] checkout.session.completed", {
   eventId: event.id,
