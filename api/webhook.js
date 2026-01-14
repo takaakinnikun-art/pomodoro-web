@@ -62,6 +62,13 @@ export default async function handler(req, res) {
       const uid =
         session?.client_reference_id || session?.metadata?.uid;
 
+console.log("[webhook] checkout.session.completed", {
+  eventId: event.id,
+  uid,
+  client_reference_id: session?.client_reference_id,
+  metadata_uid: session?.metadata?.uid,
+});
+
       if (!uid) {
         return res.status(200).json({ received: true, no_uid: true });
       }
