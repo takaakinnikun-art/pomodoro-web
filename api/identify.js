@@ -1,38 +1,35 @@
-// pages/api/identify.js
+import { serialize, parse } from "cookie";
 import crypto from "crypto";
 
-const COOKIE_NAME = "pm_uid";
-const SIG_NAME = "pm_uid_sig";
-
-// 簡易署名（改ざん検知用）
-function sign(uid, secret) {
-  return crypto.createHmac("sha256", secret).update(uid).digest("hex");
-}
+const COOKIE_NAME = "uid";
 
 export default function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).send("Method Not Allowed");
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "method not allowed" });
+  }
 
-  const { uid } = req.body || {};
-  if (!uid || typeof uid !== "string") return res.status(400).json({ ok: false, error: "missing uid" });
+  const cookies = parse(req.headers.cookie || "");
+  const existingUid = cookies[COOKIE_NAME];
 
-  const secret = process.env.UID_COOKIE_SECRET;
-  if (!secret) return res.status(500).json({ ok: false, error: "missing UID_COOKIE_SECRET" });
+  // 既に uid Cookie があるなら、そのまま成功でOK
+  if (existingUid) {
+    return res.status(200).json({ ok: true });
+  }
 
-  const sig = sign(uid, secret);
+  // 無ければ新規発行
+  const uid = crypto.randomUUID();
 
   const isProd = process.env.NODE_ENV === "production";
-  const base = [
-    "Path=/",
-    "HttpOnly",
-    "SameSite=Lax",
-    `Max-Age=${60 * 60 * 24 * 365}`, // 1年
-  ];
-  if (isProd) base.push("Secure");
-
-  res.setHeader("Set-Cookie", [
-    `${COOKIE_NAME}=${encodeURIComponent(uid)}; ${base.join("; ")}`,
-    `${SIG_NAME}=${sig}; ${base.join("; ")}`,
-  ]);
+  res.setHeader(
+    "Set-Cookie",
+    serialize(COOKIE_NAME, uid, {
+      httpOnly: true,
+      secure: isProd,        // 本番だけ true
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365, // 1年
+    })
+  );
 
   return res.status(200).json({ ok: true });
 }
