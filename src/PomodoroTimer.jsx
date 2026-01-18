@@ -1,15 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, Coffee, Briefcase, Settings, X } from 'lucide-react';
 
-// uid をブラウザに保存（ユーザー識別用）
-const getOrCreateUid = () => {
-  let uid = localStorage.getItem("uid");
-  if (!uid) {
-    uid = crypto.randomUUID();
-    localStorage.setItem("uid", uid);
-  }
-  return uid;
-};
 
 export default function PomodoroTimer() {
   const [minutes, setMinutes] = useState(25);
@@ -33,11 +24,9 @@ const [showProModal, setShowProModal] = useState(false);
 const [isPro, setIsPro] = useState(false);
 
 useEffect(() => {
-  const uid = getOrCreateUid();
-
-  fetch(`/api/me?uid=${encodeURIComponent(uid)}`)
+  fetch("/api/me", { credentials: "include" })
     .then((res) => res.json())
-    .then((data) => setIsPro(!!data.isPro))
+    .then((data) => setIsPro(!!data.pro))
     .catch(() => setIsPro(false));
 }, []);
 
@@ -48,18 +37,13 @@ const requirePro = (action) => {
 
 
 const handleCheckout = async () => {
-  const uid = getOrCreateUid();
-
   const res = await fetch("/api/checkout", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uid }),
+    credentials: "include",
   });
 
   const data = await res.json();
-
   if (!data.url) {
-    console.error(data);
     alert("Checkout URL が取得できませんでした");
     return;
   }
