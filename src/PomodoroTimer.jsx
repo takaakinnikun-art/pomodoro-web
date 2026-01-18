@@ -15,6 +15,11 @@ export default function PomodoroTimer() {
   const [longBreakInterval, setLongBreakInterval] = useState(4);
   const [showSettings, setShowSettings] = useState(false);
   const [continueTaskUntilLongBreak, setContinueTaskUntilLongBreak] = useState(false);
+
+const [workMinutes, setWorkMinutes] = useState(25);           // Pro: 15-60
+const [shortBreakMinutes, setShortBreakMinutes] = useState(5); // Pro: 3-15
+const [longBreakMinutes, setLongBreakMinutes] = useState(15);   // Pro: 10-30
+
   const intervalRef = useRef(null);
   const wakeLockRef = useRef(null);
   const startTimeRef = useRef(null);
@@ -63,15 +68,15 @@ const handleCheckout = async () => {
               setMode('break');
               const nextPomodoroCount = completedPomodoros + 1;
               if (nextPomodoroCount % longBreakInterval === 0) {
-                setMinutes(15);
+                setMinutes(longBreakMinutes);
               } else {
-                setMinutes(5);
+                setMinutes(shortBreakMinutes);
               }
               setSeconds(0);
               setIsActive(autoStart);
             } else {
               setMode('work');
-              setMinutes(25);
+              setMinutes(workMinutes);
               setSeconds(0);
               const isLongBreak = completedPomodoros % longBreakInterval === 0;
               if (isLongBreak || !continueTaskUntilLongBreak) {
@@ -139,11 +144,11 @@ const handleCheckout = async () => {
     targetTimeRef.current = null;
     startTimeRef.current = null;
     if (mode === 'work') {
-      setMinutes(25);
+      setMinutes(workMinutes);
       setCurrentTask('');
       setTaskInput('');
     } else {
-      setMinutes(5);
+      setMinutes(shortBreakMinutes);
     }
     setSeconds(0);
   };
@@ -154,12 +159,12 @@ const handleCheckout = async () => {
     startTimeRef.current = null;
     setMode(newMode);
     if (newMode === 'work') {
-      setMinutes(25);
+      setMinutes(workMinutes);
     } else {
       if (completedPomodoros % longBreakInterval === 0 && completedPomodoros > 0) {
-        setMinutes(15);
+        setMinutes(longBreakMinutes);
       } else {
-        setMinutes(5);
+        setMinutes(shortBreakMinutes);
       }
     }
     setSeconds(0);
@@ -169,9 +174,13 @@ const handleCheckout = async () => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const progress = mode === 'work' 
-    ? ((25 * 60 - (minutes * 60 + seconds)) / (25 * 60)) * 100
-    : ((minutes === 15 ? 15 : 5) * 60 - (minutes * 60 + seconds)) / ((minutes === 15 ? 15 : 5) * 60) * 100;
+ const totalSeconds =
+  mode === "work"
+    ? workMinutes * 60
+    : (minutes === longBreakMinutes ? longBreakMinutes : shortBreakMinutes) * 60;
+
+const progress =
+  ((totalSeconds - (minutes * 60 + seconds)) / totalSeconds) * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-3 sm:p-4">
@@ -252,6 +261,99 @@ const handleCheckout = async () => {
                   {longBreakInterval}回完了後に15分休憩
                 </p>
               </div>
+
+<div className="pt-3 border-t border-gray-200 space-y-4">
+  {/* 作業時間 */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      作業時間（分）
+      {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+    </label>
+    <div className="flex items-center gap-3">
+      <input
+        type="range"
+        min="15"
+        max="60"
+        value={workMinutes}
+        onPointerDown={(e) => {
+          if (!isPro) {
+            e.preventDefault();
+            setShowProModal(true);
+          }
+        }}
+        onChange={(e) => requirePro(() => setWorkMinutes(Number(e.target.value)))}
+        className={`flex-1 ${!isPro ? "opacity-60" : ""}`}
+        disabled={isActive}
+      />
+      <div className="text-right min-w-[70px]">
+        <span className="text-xl sm:text-2xl font-bold text-red-600">{workMinutes}</span>
+        <span className="text-xs text-gray-600 ml-1">分</span>
+      </div>
+    </div>
+  </div>
+
+  {/* 短休憩 */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      短休憩（分）
+      {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+    </label>
+    <div className="flex items-center gap-3">
+      <input
+        type="range"
+        min="3"
+        max="15"
+        value={shortBreakMinutes}
+        onPointerDown={(e) => {
+          if (!isPro) {
+            e.preventDefault();
+            setShowProModal(true);
+          }
+        }}
+        onChange={(e) =>
+          requirePro(() => setShortBreakMinutes(Number(e.target.value)))
+        }
+        className={`flex-1 ${!isPro ? "opacity-60" : ""}`}
+        disabled={isActive}
+      />
+      <div className="text-right min-w-[70px]">
+        <span className="text-xl sm:text-2xl font-bold text-red-600">{shortBreakMinutes}</span>
+        <span className="text-xs text-gray-600 ml-1">分</span>
+      </div>
+    </div>
+  </div>
+
+  {/* 長休憩 */}
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      長休憩（分）
+      {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+    </label>
+    <div className="flex items-center gap-3">
+      <input
+        type="range"
+        min="10"
+        max="30"
+        value={longBreakMinutes}
+        onPointerDown={(e) => {
+          if (!isPro) {
+            e.preventDefault();
+            setShowProModal(true);
+          }
+        }}
+        onChange={(e) =>
+          requirePro(() => setLongBreakMinutes(Number(e.target.value)))
+        }
+        className={`flex-1 ${!isPro ? "opacity-60" : ""}`}
+        disabled={isActive}
+      />
+      <div className="text-right min-w-[70px]">
+        <span className="text-xl sm:text-2xl font-bold text-red-600">{longBreakMinutes}</span>
+        <span className="text-xs text-gray-600 ml-1">分</span>
+      </div>
+    </div>
+  </div>
+</div>
 
               <div className="pt-3 border-t border-gray-200 space-y-3">
                 <label className="flex items-center justify-between cursor-pointer">
