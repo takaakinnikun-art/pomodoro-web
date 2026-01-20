@@ -25,8 +25,67 @@ const [longBreakMinutes, setLongBreakMinutes] = useState(15);   // Pro: 10-30
   const startTimeRef = useRef(null);
   const targetTimeRef = useRef(null);
 
+const STATS_KEY = "pomo_stats_v1";
+const PRESETS = [
+  { id: "standard", name: "Standard", work: 25, short: 5, long: 15 },
+  { id: "deep", name: "Deep Work", work: 50, short: 10, long: 20 },
+  { id: "light", name: "Light", work: 15, short: 3, long: 10 },
+];
+
+
+const yyyyMmDd = (d = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
+const loadStats = () => {
+  try {
+    return JSON.parse(localStorage.getItem(STATS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveStats = (obj) => {
+  localStorage.setItem(STATS_KEY, JSON.stringify(obj));
+};
+
+const addFocusSeconds = (sec) => {
+  const stats = loadStats();
+  const key = yyyyMmDd();
+  stats[key] = (stats[key] || 0) + sec;
+  saveStats(stats);
+};
+
+const calcTodayAndWeek = () => {
+  const stats = loadStats();
+  const todayKey = yyyyMmDd();
+  const today = stats[todayKey] || 0;
+
+  let week = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    week += stats[yyyyMmDd(d)] || 0;
+  }
+  return { today, week };
+};
+
+const formatHrsMins = (sec) => {
+  const mins = Math.floor(sec / 60);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}時間${m}分` : `${m}分`;
+};
+
 const [showProModal, setShowProModal] = useState(false);
 const [isPro, setIsPro] = useState(false);
+
+const [todayFocusSec, setTodayFocusSec] = useState(0);
+const [weekFocusSec, setWeekFocusSec] = useState(0);
+
 
 useEffect(() => {
   fetch("/api/me", { credentials: "include" })
@@ -35,11 +94,31 @@ useEffect(() => {
     .catch(() => setIsPro(false));
 }, []);
 
+useEffect(() => {
+  const { today, week } = calcTodayAndWeek();
+  setTodayFocusSec(today);
+  setWeekFocusSec(week);
+}, []);
+
 const requirePro = (action) => {
   if (isPro) return action();
   setShowProModal(true);
 };
 
+const applyPreset = (p) => {
+  requirePro(() => {
+    setWorkMinutes(p.work);
+    setShortBreakMinutes(p.short);
+    setLongBreakMinutes(p.long);
+
+    // 停止中なら表示にも即反映（気持ちいい）
+    if (!isActive) {
+      if (mode === "work") setMinutes(p.work);
+      else setMinutes(p.short);
+      setSeconds(0);
+    }
+  });
+};
 
 const handleCheckout = async () => {
   const res = await fetch("/api/checkout", {
@@ -63,18 +142,32 @@ const handleCheckout = async () => {
           if (minutes === 0) {
             playNotification();
             
-            if (mode === 'work') {
-              setCompletedPomodoros(prev => prev + 1);
-              setMode('break');
-              const nextPomodoroCount = completedPomodoros + 1;
-              if (nextPomodoroCount % longBreakInterval === 0) {
-                setMinutes(longBreakMinutes);
-              } else {
-                setMinutes(shortBreakMinutes);
-              }
-              setSeconds(0);
-              setIsActive(autoStart);
-            } else {
+           if (mode === 'work') {
+  setCompletedPomodoros((prev) => {
+    const nextPomodoroCount = prev + 1;
+
+    // ✅ 統計をここで加算（二重・抜け防止）
+    const workedSec = workMinutes * 60;
+    addFocusSeconds(workedSec);
+    const { today, week } = calcTodayAndWeek();
+    setTodayFocusSec(today);
+    setWeekFocusSec(week);
+
+    // ✅ 次の休憩時間をここで確定
+    if (nextPomodoroCount % longBreakInterval === 0) {
+      setMinutes(longBreakMinutes);
+    } else {
+      setMinutes(shortBreakMinutes);
+    }
+
+    return nextPomodoroCount;
+  });
+
+  setMode("break");
+  setSeconds(0);
+  setIsActive(autoStart);
+}
+else {
               setMode('work');
               setMinutes(workMinutes);
               setSeconds(0);
@@ -258,8 +351,8 @@ const progress =
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1.5">
-                  {longBreakInterval}回完了後に15分休憩
-                </p>
+  {longBreakInterval}回完了後に{longBreakMinutes}分休憩
+</p>
               </div>
 
 <div className="pt-3 border-t border-gray-200 space-y-4">
@@ -291,6 +384,27 @@ const progress =
       </div>
     </div>
   </div>
+<div className="pt-3 border-t border-gray-200">
+  <div className="text-sm font-medium text-gray-800 mb-2">
+    プリセット {!isPro && <span className="ml-2 text-xs text-gray-500">🔒 Pro</span>}
+  </div>
+
+  <div className="grid grid-cols-3 gap-2">
+    {PRESETS.map((p) => (
+      <button
+        key={p.id}
+        onClick={() => applyPreset(p)}
+        className="py-2 rounded-xl bg-gray-200 hover:bg-gray-300 text-sm font-semibold active:scale-95"
+      >
+        {p.name}
+      </button>
+    ))}
+  </div>
+
+  <p className="text-xs text-gray-500 mt-2">
+    ワンクリックで作業/休憩/長休憩の時間を切り替えます
+  </p>
+</div>
 
   {/* 短休憩 */}
   <div>
@@ -561,6 +675,12 @@ const progress =
               <div>
                 <div className="text-xs sm:text-sm text-gray-600 mb-0.5">完了</div>
                 <div className="text-2xl sm:text-3xl font-bold text-red-600">{completedPomodoros}</div>
+<div className="text-xs text-gray-600 mt-2">今日の集中</div>
+<div className="text-sm font-semibold text-gray-800">{formatHrsMins(todayFocusSec)}</div>
+
+<div className="text-xs text-gray-600 mt-2">直近7日の集中</div>
+<div className="text-sm font-semibold text-gray-800">{formatHrsMins(weekFocusSec)}</div>
+
               </div>
               {longBreakInterval > 0 && (
                 <div className="text-right">
